@@ -3,365 +3,364 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Face Rescue - Missing Children Identification</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <title>Missing Children Face Recognition</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .webcam-container {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .capture-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .capture-overlay.active {
+            opacity: 1;
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
-<body>
+<body class="bg-gray-100 min-h-screen">
     <!-- Navigation -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="nav-brand">
-                <i class="fas fa-shield-alt"></i>
-                <span>Face Rescue</span>
+    <nav class="gradient-bg text-white p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-child text-2xl"></i>
+                <h1 class="text-2xl font-bold">Face Rescue</h1>
             </div>
-            <div class="nav-menu">
-                <a href="#" class="nav-link active" data-page="search">
-                    <i class="fas fa-search"></i>
-                    Search Child
-                </a>
-                <a href="#" class="nav-link" data-page="register">
-                    <i class="fas fa-user-plus"></i>
-                    Register Student
-                </a>
-                <a href="#" class="nav-link" data-page="dashboard">
-                    <i class="fas fa-chart-bar"></i>
-                    Dashboard
-                </a>
-                <a href="#" class="nav-link" data-page="students">
-                    <i class="fas fa-users"></i>
-                    Students
-                </a>
+            <div class="flex space-x-4">
+                <button id="navRegister" class="hover:bg-white hover:bg-opacity-20 px-4 py-2 rounded transition">
+                    <i class="fas fa-user-plus mr-2"></i>Register Student
+                </button>
+                <button id="navSearch" class="hover:bg-white hover:bg-opacity-20 px-4 py-2 rounded transition">
+                    <i class="fas fa-search mr-2"></i>Search Face
+                </button>
+                <button id="navList" class="hover:bg-white hover:bg-opacity-20 px-4 py-2 rounded transition">
+                    <i class="fas fa-list mr-2"></i>Student List
+                </button>
             </div>
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <!-- Search Page -->
-        <div id="search-page" class="page active">
-            <div class="page-header">
-                <h1><i class="fas fa-search"></i> Find Missing Child</h1>
-                <p>Upload or capture a photo to identify a missing or special needs child</p>
-            </div>
-
-            <div class="search-container">
-                <div class="camera-section">
-                    <div class="camera-container">
-                        <video id="camera-video" class="camera-video" autoplay muted></video>
-                        <canvas id="camera-canvas" class="camera-canvas" style="display: none;"></canvas>
-                        <div class="camera-overlay">
-                            <div class="face-guide">
-                                <div class="face-outline"></div>
-                                <p>Position face within the frame</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="camera-controls">
-                        <button id="start-camera" class="btn btn-primary">
-                            <i class="fas fa-camera"></i>
-                            Start Camera
-                        </button>
-                        <button id="capture-photo" class="btn btn-success" style="display: none;">
-                            <i class="fas fa-camera-retro"></i>
-                            Capture Photo
-                        </button>
-                        <button id="stop-camera" class="btn btn-secondary" style="display: none;">
-                            <i class="fas fa-stop"></i>
-                            Stop Camera
-                        </button>
-                    </div>
-                </div>
-
-                <div class="upload-section">
-                    <div class="upload-area" id="upload-area">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <h3>Or Upload a Photo</h3>
-                        <p>Drag & drop an image here or click to browse</p>
-                        <input type="file" id="photo-upload" accept="image/*" style="display: none;">
-                        <button class="btn btn-outline" onclick="document.getElementById('photo-upload').click()">
-                            Choose File
-                        </button>
-                    </div>
-                </div>
-
-                <div class="preview-section" id="preview-section" style="display: none;">
-                    <h3>Preview</h3>
-                    <img id="preview-image" class="preview-image" alt="Preview">
-                    <div class="preview-actions">
-                        <button id="search-face" class="btn btn-primary">
-                            <i class="fas fa-search"></i>
-                            Search for Child
-                        </button>
-                        <button id="clear-preview" class="btn btn-secondary">
-                            <i class="fas fa-times"></i>
-                            Clear
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Search Results -->
-            <div id="search-results" class="search-results" style="display: none;">
-                <div class="results-container">
-                    <div class="result-header">
-                        <h2 id="result-title"></h2>
-                        <div id="result-confidence" class="confidence-badge"></div>
-                    </div>
-                    <div id="result-content"></div>
+    <!-- Main Container -->
+    <div class="container mx-auto px-4 py-8">
+        <!-- Welcome Section -->
+        <div id="welcomeSection" class="text-center mb-8">
+            <div class="card-shadow bg-white rounded-lg p-8 max-w-2xl mx-auto">
+                <i class="fas fa-heart text-6xl text-red-500 mb-4"></i>
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">Welcome to Face Rescue</h2>
+                <p class="text-gray-600 mb-6">
+                    An AI-powered face recognition system to help identify missing or special needs children.
+                    Register students with their photos and emergency contacts, then use face search to quickly identify them.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button id="startRegister" class="gradient-bg text-white py-3 px-6 rounded-lg hover:opacity-90 transition">
+                        <i class="fas fa-user-plus mr-2"></i>Register New Student
+                    </button>
+                    <button id="startSearch" class="bg-green-500 text-white py-3 px-6 rounded-lg hover:bg-green-600 transition">
+                        <i class="fas fa-camera mr-2"></i>Start Face Search
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Register Page -->
-        <div id="register-page" class="page">
-            <div class="page-header">
-                <h1><i class="fas fa-user-plus"></i> Register New Student</h1>
-                <p>Add a new student with their photos and emergency information</p>
-            </div>
+        <!-- Registration Section -->
+        <div id="registrationSection" class="hidden">
+            <div class="card-shadow bg-white rounded-lg p-6">
+                <div class="flex items-center mb-6">
+                    <i class="fas fa-user-plus text-2xl text-blue-500 mr-3"></i>
+                    <h2 class="text-2xl font-bold text-gray-800">Register New Student</h2>
+                </div>
 
-            <div class="register-container">
-                <form id="register-form" class="register-form">
+                <form id="registrationForm">
                     <!-- Student Information -->
-                    <div class="form-section">
-                        <h3><i class="fas fa-user"></i> Student Information</h3>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="student-name">Full Name *</label>
-                                <input type="text" id="student-name" name="name" required>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-4">Student Information</h3>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Full Name *</label>
+                                <input type="text" id="studentName" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
                             </div>
-                            <div class="form-group">
-                                <label for="student-age">Age</label>
-                                <input type="number" id="student-age" name="age" min="1" max="25">
+                            
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-gray-700 text-sm font-bold mb-2">Age</label>
+                                    <input type="number" id="studentAge" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" min="1" max="25">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 text-sm font-bold mb-2">Gender</label>
+                                    <select id="studentGender" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                                        <option value="">Select...</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label for="student-gender">Gender</label>
-                                <select id="student-gender" name="gender">
-                                    <option value="">Select Gender</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2">School</label>
+                                <input type="text" id="studentSchool" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Class/Grade</label>
+                                <input type="text" id="studentClass" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Special Needs/Conditions</label>
+                                <textarea id="specialNeeds" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" rows="3"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Emergency Contact -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-4">Emergency Contact</h3>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Guardian Name *</label>
+                                <input type="text" id="guardianName" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Relationship *</label>
+                                <select id="relationship" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
+                                    <option value="">Select...</option>
+                                    <option value="Father">Father</option>
+                                    <option value="Mother">Mother</option>
+                                    <option value="Guardian">Guardian</option>
+                                    <option value="Teacher">Teacher</option>
+                                    <option value="Caretaker">Caretaker</option>
                                     <option value="Other">Other</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label for="student-school">School</label>
-                                <input type="text" id="student-school" name="school">
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Primary Phone *</label>
+                                <input type="tel" id="primaryPhone" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
                             </div>
-                            <div class="form-group">
-                                <label for="student-grade">Grade/Class</label>
-                                <input type="text" id="student-grade" name="grade">
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Alternate Phone</label>
+                                <input type="tel" id="alternatePhone" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Emergency Contact -->
-                    <div class="form-section">
-                        <h3><i class="fas fa-phone"></i> Emergency Contact</h3>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="guardian-name">Guardian Name *</label>
-                                <input type="text" id="guardian-name" name="guardian_name" required>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Address *</label>
+                                <textarea id="address" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" rows="3" required></textarea>
                             </div>
-                            <div class="form-group">
-                                <label for="guardian-phone">Primary Phone *</label>
-                                <input type="tel" id="guardian-phone" name="phone" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="guardian-alt-phone">Alternate Phone</label>
-                                <input type="tel" id="guardian-alt-phone" name="alternate_phone">
-                            </div>
-                            <div class="form-group">
-                                <label for="guardian-relationship">Relationship *</label>
-                                <select id="guardian-relationship" name="relationship" required>
-                                    <option value="">Select Relationship</option>
-                                    <option value="Parent">Parent</option>
-                                    <option value="Guardian">Guardian</option>
-                                    <option value="Relative">Relative</option>
-                                    <option value="Caregiver">Caregiver</option>
-                                </select>
-                            </div>
-                            <div class="form-group full-width">
-                                <label for="guardian-address">Address</label>
-                                <textarea id="guardian-address" name="address" rows="2"></textarea>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                                <input type="email" id="email" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Medical Information -->
-                    <div class="form-section">
-                        <h3><i class="fas fa-heartbeat"></i> Medical Information (Optional)</h3>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="medical-conditions">Medical Conditions</label>
-                                <input type="text" id="medical-conditions" name="conditions" placeholder="Enter conditions separated by commas">
+                    <!-- Photo Capture Section -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Face Photos (3-10 photos required)</h3>
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Webcam Section -->
+                            <div>
+                                <div class="webcam-container bg-gray-900 rounded-lg mb-4">
+                                    <video id="webcam" class="w-full h-64 object-cover" autoplay muted></video>
+                                    <canvas id="canvas" class="hidden"></canvas>
+                                    <div id="captureOverlay" class="capture-overlay">
+                                        <div class="text-white text-center">
+                                            <i class="fas fa-camera text-4xl mb-2"></i>
+                                            <div>Photo Captured!</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-center space-x-4">
+                                    <button type="button" id="startCamera" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">
+                                        <i class="fas fa-video mr-2"></i>Start Camera
+                                    </button>
+                                    <button type="button" id="capturePhoto" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition" disabled>
+                                        <i class="fas fa-camera mr-2"></i>Capture Photo
+                                    </button>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label for="medical-medications">Current Medications</label>
-                                <input type="text" id="medical-medications" name="medications" placeholder="Enter medications separated by commas">
-                            </div>
-                            <div class="form-group">
-                                <label for="medical-allergies">Allergies</label>
-                                <input type="text" id="medical-allergies" name="allergies" placeholder="Enter allergies separated by commas">
-                            </div>
-                            <div class="form-group full-width">
-                                <label for="special-needs">Special Care Instructions</label>
-                                <textarea id="special-needs" name="special_needs" rows="2"></textarea>
+
+                            <!-- Captured Photos -->
+                            <div>
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 h-64 overflow-y-auto">
+                                    <div id="capturedPhotos" class="grid grid-cols-2 gap-2">
+                                        <div class="text-center text-gray-500 col-span-2 mt-20">
+                                            <i class="fas fa-images text-4xl mb-2"></i>
+                                            <div>Captured photos will appear here</div>
+                                            <div class="text-sm">Minimum 3 photos required</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-center mt-4">
+                                    <input type="file" id="fileUpload" accept="image/*" multiple class="hidden">
+                                    <button type="button" id="uploadButton" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition">
+                                        <i class="fas fa-upload mr-2"></i>Upload Photos
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Additional Notes -->
-                    <div class="form-section">
-                        <h3><i class="fas fa-sticky-note"></i> Additional Notes</h3>
-                        <div class="form-group">
-                            <textarea id="student-notes" name="notes" rows="3" placeholder="Any additional information about the student..."></textarea>
-                        </div>
+                    <!-- Additional Information -->
+                    <div class="mb-6">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Additional Information</label>
+                        <textarea id="additionalInfo" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" rows="3" placeholder="Any other important details..."></textarea>
                     </div>
 
-                    <!-- Photos Section -->
-                    <div class="form-section">
-                        <h3><i class="fas fa-camera"></i> Student Photos (3-6 required)</h3>
-                        <div class="photos-upload">
-                            <div class="photos-grid" id="photos-grid">
-                                <!-- Photo upload slots will be generated here -->
-                            </div>
-                            <div class="photos-info">
-                                <p><i class="fas fa-info-circle"></i> Upload 3-6 clear photos of the student's face from different angles</p>
-                                <p><i class="fas fa-exclamation-triangle"></i> Ensure good lighting and the face is clearly visible</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="button" id="clear-form" class="btn btn-secondary">
-                            <i class="fas fa-eraser"></i>
-                            Clear Form
-                        </button>
-                        <button type="submit" id="submit-registration" class="btn btn-primary">
-                            <i class="fas fa-save"></i>
-                            Register Student
+                    <!-- Submit Button -->
+                    <div class="text-center">
+                        <button type="submit" id="submitRegistration" class="gradient-bg text-white px-8 py-3 rounded-lg hover:opacity-90 transition text-lg font-semibold" disabled>
+                            <i class="fas fa-save mr-2"></i>Register Student
                         </button>
                     </div>
                 </form>
             </div>
         </div>
 
-        <!-- Students Page -->
-        <div id="students-page" class="page">
-            <div class="page-header">
-                <h1><i class="fas fa-users"></i> Registered Students</h1>
-                <p>View and manage all registered students</p>
-            </div>
+        <!-- Search Section -->
+        <div id="searchSection" class="hidden">
+            <div class="card-shadow bg-white rounded-lg p-6">
+                <div class="flex items-center mb-6">
+                    <i class="fas fa-search text-2xl text-green-500 mr-3"></i>
+                    <h2 class="text-2xl font-bold text-gray-800">Face Search</h2>
+                </div>
 
-            <div class="students-container">
-                <div class="students-controls">
-                    <div class="search-bar">
-                        <input type="text" id="students-search" placeholder="Search students...">
-                        <i class="fas fa-search"></i>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Search Input -->
+                    <div>
+                        <div class="webcam-container bg-gray-900 rounded-lg mb-4">
+                            <video id="searchWebcam" class="w-full h-64 object-cover" autoplay muted></video>
+                            <canvas id="searchCanvas" class="hidden"></canvas>
+                        </div>
+                        <div class="text-center space-x-4">
+                            <button type="button" id="startSearchCamera" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">
+                                <i class="fas fa-video mr-2"></i>Start Camera
+                            </button>
+                            <button type="button" id="searchFace" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition" disabled>
+                                <i class="fas fa-search mr-2"></i>Search Face
+                            </button>
+                        </div>
+                        <div class="text-center mt-4">
+                            <input type="file" id="searchFileUpload" accept="image/*" class="hidden">
+                            <button type="button" id="searchUploadButton" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition">
+                                <i class="fas fa-upload mr-2"></i>Upload Photo
+                            </button>
+                        </div>
                     </div>
-                    <button id="refresh-students" class="btn btn-primary">
-                        <i class="fas fa-sync-alt"></i>
-                        Refresh
+
+                    <!-- Search Results -->
+                    <div>
+                        <div id="searchResults" class="border rounded-lg p-4 h-80 overflow-y-auto">
+                            <div class="text-center text-gray-500 mt-20">
+                                <i class="fas fa-user-search text-4xl mb-2"></i>
+                                <div>Search results will appear here</div>
+                                <div class="text-sm">Take a photo or upload an image to search</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student List Section -->
+        <div id="listSection" class="hidden">
+            <div class="card-shadow bg-white rounded-lg p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center">
+                        <i class="fas fa-list text-2xl text-purple-500 mr-3"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">Registered Students</h2>
+                    </div>
+                    <button id="refreshList" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">
+                        <i class="fas fa-refresh mr-2"></i>Refresh
                     </button>
                 </div>
 
-                <div id="students-list" class="students-list">
+                <div id="studentsList">
                     <!-- Students will be loaded here -->
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Dashboard Page -->
-        <div id="dashboard-page" class="page">
-            <div class="page-header">
-                <h1><i class="fas fa-chart-bar"></i> Dashboard</h1>
-                <p>System statistics and recent activity</p>
-            </div>
-
-            <div class="dashboard-container">
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-users"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3 id="total-students">0</h3>
-                            <p>Total Students</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-search"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3 id="total-searches">0</h3>
-                            <p>Total Searches</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3 id="successful-matches">0</h3>
-                            <p>Successful Matches</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-percentage"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3 id="success-rate">0%</h3>
-                            <p>Success Rate</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="recent-activity">
-                    <h3><i class="fas fa-clock"></i> Recent Search Activity</h3>
-                    <div id="recent-logs" class="logs-list">
-                        <!-- Recent logs will be loaded here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay">
-        <div class="loading-spinner">
-            <div class="spinner"></div>
-            <p id="loading-text">Processing...</p>
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg p-6 text-center">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <div id="loadingText" class="text-gray-700">Processing...</div>
         </div>
     </div>
 
-    <!-- Toast Notifications -->
-    <div id="toast-container" class="toast-container"></div>
-
-    <!-- Modals -->
-    <div id="student-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-title">Student Details</h2>
-                <button class="modal-close">&times;</button>
+    <!-- Success Modal -->
+    <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md mx-auto">
+            <div class="text-center mb-4">
+                <i class="fas fa-check-circle text-4xl text-green-500"></i>
             </div>
-            <div class="modal-body" id="modal-body">
-                <!-- Student details will be loaded here -->
+            <div id="successMessage" class="text-center text-gray-700 mb-4"></div>
+            <div class="text-center">
+                <button id="closeSuccess" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition">
+                    OK
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="js/api.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/camera.js"></script>
-    <script src="js/search.js"></script>
-    <script src="js/register.js"></script>
-    <script src="js/students.js"></script>
-    <script src="js/dashboard.js"></script>
-    <script src="js/app.js"></script>
+    <!-- Error Modal -->
+    <div id="errorModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md mx-auto">
+            <div class="text-center mb-4">
+                <i class="fas fa-exclamation-triangle text-4xl text-red-500"></i>
+            </div>
+            <div id="errorMessage" class="text-center text-gray-700 mb-4"></div>
+            <div class="text-center">
+                <button id="closeError" class="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
 </body>
 </html>
