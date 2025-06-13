@@ -9,9 +9,9 @@ import os
 
 logger = logging.getLogger(__name__)
 
-class SimpleFaceProcessor:
+class EnhancedFaceProcessor:
     def __init__(self):
-        self.confidence_threshold = 0.55  # Optimized for better accuracy
+        self.confidence_threshold = 0.65  # Lowered slightly for better matches
         
         # Load multiple face detection cascades for better detection
         cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
@@ -21,28 +21,16 @@ class SimpleFaceProcessor:
         profile_cascade_path = cv2.data.haarcascades + 'haarcascade_profileface.xml'
         self.profile_cascade = cv2.CascadeClassifier(profile_cascade_path)
         
-        # Additional cascade for better detection
-        alt_cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_alt.xml'
-        self.alt_cascade = cv2.CascadeClassifier(alt_cascade_path)
-        
-        # Feature extraction parameters - optimized for accuracy
-        self.face_size = (160, 160)  # Increased for better feature resolution
+        # Feature extraction parameters
+        self.face_size = (128, 128)  # Increased from 64x64 for better features
         self.use_histogram_equalization = True
         self.use_gaussian_blur = True
-        self.use_clahe = True  # Contrast Limited Adaptive Histogram Equalization
-        
-        # Initialize CLAHE
-        self.clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
         
     def detect_face_with_multiple_cascades(self, gray_image):
         """
         Detect faces using multiple cascade classifiers for better accuracy
         """
         faces = []
-        
-        # Apply CLAHE for better contrast before detection
-        if self.use_clahe:
-            gray_image = self.clahe.apply(gray_image)
         
         # Try frontal face detection with multiple parameters
         frontal_faces = self.face_cascade.detectMultiScale(
@@ -66,16 +54,6 @@ class SimpleFaceProcessor:
             )
             faces.extend(frontal_faces)
         
-        # Try alternative cascade
-        if len(faces) == 0:
-            alt_faces = self.alt_cascade.detectMultiScale(
-                gray_image, 
-                scaleFactor=1.1, 
-                minNeighbors=4,
-                minSize=(25, 25)
-            )
-            faces.extend(alt_faces)
-        
         # Try profile face detection if still no faces
         if len(faces) == 0:
             profile_faces = self.profile_cascade.detectMultiScale(
@@ -85,49 +63,8 @@ class SimpleFaceProcessor:
                 minSize=(30, 30)
             )
             faces.extend(profile_faces)
-            
-        # Remove duplicate faces that are too close to each other
-        if len(faces) > 1:
-            faces = self.remove_duplicate_faces(faces)
         
         return faces
-    
-    def remove_duplicate_faces(self, faces):
-        """
-        Remove duplicate faces that are too close to each other
-        """
-        if len(faces) <= 1:
-            return faces
-        
-        # Convert to list for easier manipulation
-        faces_list = list(faces)
-        filtered_faces = []
-        
-        for i, face1 in enumerate(faces_list):
-            x1, y1, w1, h1 = face1
-            is_duplicate = False
-            
-            for j, face2 in enumerate(filtered_faces):
-                x2, y2, w2, h2 = face2
-                
-                # Calculate overlap
-                overlap_x = max(0, min(x1 + w1, x2 + w2) - max(x1, x2))
-                overlap_y = max(0, min(y1 + h1, y2 + h2) - max(y1, y2))
-                overlap_area = overlap_x * overlap_y
-                
-                area1 = w1 * h1
-                area2 = w2 * h2
-                union_area = area1 + area2 - overlap_area
-                
-                # If overlap is significant, consider it a duplicate
-                if union_area > 0 and overlap_area / union_area > 0.3:
-                    is_duplicate = True
-                    break
-            
-            if not is_duplicate:
-                filtered_faces.append(face1)
-        
-        return filtered_faces
     
     def preprocess_face_image(self, face_roi):
         """
@@ -136,10 +73,6 @@ class SimpleFaceProcessor:
         # Apply histogram equalization for better contrast
         if self.use_histogram_equalization:
             face_roi = cv2.equalizeHist(face_roi)
-        
-        # Apply CLAHE for better local contrast
-        if self.use_clahe:
-            face_roi = self.clahe.apply(face_roi)
         
         # Apply slight Gaussian blur to reduce noise
         if self.use_gaussian_blur:
@@ -323,7 +256,7 @@ class SimpleFaceProcessor:
     
     def compare_faces(self, embedding1: List[float], embedding2: List[float]) -> float:
         """
-        Compare two face embeddings using enhanced similarity metrics
+        Compare two face embeddings using multiple similarity metrics
         """
         try:
             # Convert to numpy arrays
@@ -335,51 +268,41 @@ class SimpleFaceProcessor:
                 logger.warning(f"Embedding length mismatch: {len(emb1)} vs {len(emb2)}")
                 return 0.0
             
-            # Normalize embeddings for better comparison
-            emb1_norm = emb1 / (np.linalg.norm(emb1) + 1e-8)
-            emb2_norm = emb2 / (np.linalg.norm(emb2) + 1e-8)
+            # 1. Cosine similarity
+            dot_product = np.dot(emb1, emb2)
+            norm1 = np.linalg.norm(emb1)
+            norm2 = np.linalg.norm(emb2)
             
-            # 1. Cosine similarity (most important for face recognition)
-            cosine_similarity = np.dot(emb1_norm, emb2_norm)
+            if norm1 == 0 or norm2 == 0:
+                cosine_similarity = 0.0
+            else:
+                cosine_similarity = dot_product / (norm1 * norm2)
             
-            # 2. Pearson correlation coefficient
+            # 2. Euclidean distance similarity
+            euclidean_dist = np.linalg.norm(emb1 - emb2)
+            max_possible_dist = np.sqrt(len(emb1))  # Approximate max distance
+            euclidean_similarity = 1.0 - (euclidean_dist / max_possible_dist)
+            
+            # 3. Correlation coefficient
             correlation = np.corrcoef(emb1, emb2)[0, 1]
             if np.isnan(correlation):
                 correlation = 0.0
             
-            # 3. Chi-square distance (good for histogram features)
-            chi_square_sim = 0.0
-            for i in range(len(emb1)):
-                if emb1[i] + emb2[i] > 0:
-                    chi_square_sim += ((emb1[i] - emb2[i]) ** 2) / (emb1[i] + emb2[i])
-            chi_square_sim = 1.0 / (1.0 + chi_square_sim / len(emb1))
-            
-            # 4. Manhattan distance similarity
-            manhattan_dist = np.sum(np.abs(emb1_norm - emb2_norm))
-            manhattan_sim = 1.0 / (1.0 + manhattan_dist)
-            
-            # 5. Weighted combination of different similarity measures
-            # Cosine similarity is most important for face recognition
+            # Combine similarities with weights
             combined_similarity = (
-                0.6 * cosine_similarity +      # Primary metric
-                0.2 * correlation +            # Secondary metric
-                0.1 * chi_square_sim +         # Good for LBP features
-                0.1 * manhattan_sim            # Additional metric
+                0.5 * cosine_similarity +
+                0.3 * euclidean_similarity +
+                0.2 * correlation
             )
             
-            # Apply sigmoid function to enhance separation between matches and non-matches
-            # This helps create clearer decision boundaries
-            sigmoid_factor = 15  # Controls the steepness of the sigmoid
-            enhanced_similarity = 1 / (1 + np.exp(-sigmoid_factor * (combined_similarity - 0.5)))
+            # Convert to confidence (0-1 range)
+            confidence = (combined_similarity + 1) / 2
             
-            # Convert to confidence (0-1 range) with better scaling
-            confidence = min(max(enhanced_similarity, 0.0), 1.0)
-            
-            return confidence
+            return min(max(confidence, 0.0), 1.0)
             
         except Exception as e:
             logger.error(f"Error comparing faces: {str(e)}")
             return 0.0
 
 # Create global instance
-simple_face_processor = SimpleFaceProcessor()
+enhanced_face_processor = EnhancedFaceProcessor()
