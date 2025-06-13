@@ -179,8 +179,7 @@ class SimpleFaceProcessor:
             # 6. Additional histogram equalization if needed
             if self.use_histogram_equalization:
                 final_enhanced = cv2.equalizeHist(final_enhanced)
-            
-            # 7. Final slight blur for noise reduction
+              # 7. Final slight blur for noise reduction
             if self.use_gaussian_blur:
                 final_enhanced = cv2.GaussianBlur(final_enhanced, (3, 3), 0)
             
@@ -191,7 +190,26 @@ class SimpleFaceProcessor:
             
         except Exception as e:
             logger.error(f"Advanced preprocessing failed: {str(e)}")
-            return self.preprocess_face_image(face_roi)
+            # Direct simple preprocessing to avoid infinite recursion
+            try:
+                # Apply histogram equalization for better contrast
+                if self.use_histogram_equalization:
+                    face_roi = cv2.equalizeHist(face_roi)
+                
+                # Apply CLAHE for better local contrast
+                if self.use_clahe:
+                    face_roi = self.clahe.apply(face_roi)
+                
+                # Apply slight Gaussian blur to reduce noise
+                if self.use_gaussian_blur:
+                    face_roi = cv2.GaussianBlur(face_roi, (3, 3), 0)
+                
+                # Resize to standard size with better interpolation
+                face_resized = cv2.resize(face_roi, self.face_size, interpolation=cv2.INTER_LANCZOS4)
+                return face_resized
+            except:
+                # Ultimate fallback - just resize
+                return cv2.resize(face_roi, self.face_size)
 
     def extract_gabor_features(self, face_image):
         """
@@ -661,7 +679,7 @@ class SimpleFaceProcessor:
         """
         embeddings = []
         for image_data in image_data_list:
-            embedding = self.extract_face_embedding(image_data)
+            embedding = self.extract_face_embedding(image_data)            
             if embedding:
                 embeddings.append(embedding)
         return embeddings
@@ -681,9 +699,11 @@ class SimpleFaceProcessor:
             
             scores = []
             
-            # Method 1: Standard comparison
-            standard_score = self.compare_faces(embedding1, embedding2)
-            scores.append(standard_score)
+            # Method 1: Direct cosine similarity (avoid recursion)
+            emb1_norm = emb1 / (np.linalg.norm(emb1) + 1e-8)
+            emb2_norm = emb2 / (np.linalg.norm(emb2) + 1e-8)
+            cosine_score = np.dot(emb1_norm, emb2_norm)
+            scores.append(cosine_score)
             
             # Method 2: Feature-specific comparison
             # Assume features are organized as: LBP, HOG, Gabor, Pixel, Texture
@@ -723,7 +743,21 @@ class SimpleFaceProcessor:
             
         except Exception as e:
             logger.error(f"Error in ensemble face comparison: {str(e)}")
-            return self.compare_faces(embedding1, embedding2)  # Fallback
+            # Direct fallback to avoid infinite recursion
+            try:
+                emb1 = np.array(embedding1)
+                emb2 = np.array(embedding2)
+                
+                if len(emb1) != len(emb2):
+                    return 0.0
+                
+                # Simple cosine similarity fallback
+                emb1_norm = emb1 / (np.linalg.norm(emb1) + 1e-8)
+                emb2_norm = emb2 / (np.linalg.norm(emb2) + 1e-8)
+                cosine_similarity = np.dot(emb1_norm, emb2_norm)
+                return max(0.0, min(1.0, cosine_similarity))
+            except:
+                return 0.0
 
     def split_feature_vector(self, features):
         """
