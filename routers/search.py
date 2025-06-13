@@ -3,9 +3,9 @@ import logging
 import time
 from typing import Optional
 
-from ..db.mongodb import get_database
-from ..models.student import FaceSearchResponse, FaceSearchResult, StudentResponse
-from ..services.face_engine import face_processor
+from db.mongodb import get_database
+from models.student import FaceSearchResponse, FaceSearchResult, StudentResponse
+from services.simple_face_engine import simple_face_processor
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/search", tags=["search"])
@@ -35,14 +35,8 @@ async def search_face(
             raise HTTPException(status_code=400, detail="Empty image file")
         
         logger.info("Processing search image...")
-        
-        # Preprocess image
-        processed_image = face_processor.preprocess_image(image_data)
-        if not processed_image:
-            processed_image = image_data
-        
-        # Extract face embedding from search image
-        search_embedding = face_processor.extract_face_embedding(processed_image)
+          # Extract face embedding from search image
+        search_embedding = simple_face_processor.extract_face_embedding(image_data)
         
         if not search_embedding:
             processing_time = time.time() - start_time
@@ -69,22 +63,23 @@ async def search_face(
             
             if not stored_embeddings:
                 continue
-            
-            # Find best match among this student's embeddings
-            similarity, _ = face_processor.find_best_match(search_embedding, stored_embeddings)
-            
-            if similarity > best_confidence:
-                best_confidence = similarity
-                best_match = student_doc
+              # Compare with this student's embeddings
+            for stored_embedding in stored_embeddings:
+                similarity = simple_face_processor.compare_faces(search_embedding, stored_embedding)
+                
+                if similarity > best_confidence:
+                    best_confidence = similarity
+                    best_match = student_doc
         
         processing_time = time.time() - start_time
-        logger.info(f"Search completed. Checked {students_checked} students in {processing_time:.2f}s")
-        
-        # Check if we found a valid match
-        if best_match and face_processor.is_valid_match(best_confidence):
-            # Prepare student response (exclude embeddings)
+        logger.info(f"Search completed. Checked {students_checked} students in {processing_time:.2f}s")        # Check if we found a valid match
+        if best_match and best_confidence >= simple_face_processor.confidence_threshold:
+            # Prepare student response (exclude embeddings and convert ObjectId)
             best_match.pop("face_embeddings", None)
-            best_match["id"] = str(best_match["_id"])
+            
+            # Convert ObjectId to string
+            if "_id" in best_match:
+                best_match["_id"] = str(best_match["_id"])
             
             student_response = StudentResponse(**best_match)
             
@@ -149,11 +144,10 @@ async def get_search_stats(db=Depends(get_database)):
         return {
             "total_students": total_students,
             "total_face_embeddings": total_embeddings,
-            "average_images_per_student": total_embeddings / max(total_students, 1),
-            "confidence_threshold": face_processor.confidence_threshold,
+            "average_images_per_student": total_embeddings / max(total_students, 1),            "confidence_threshold": simple_face_processor.confidence_threshold,
             "model_info": {
-                "face_model": face_processor.model_name,
-                "detector": face_processor.detector_backend
+                "face_model": "Simple OpenCV Face Detection",
+                "detector": "opencv"
             }
         }
         

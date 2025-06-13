@@ -4,9 +4,9 @@ import json
 import logging
 from datetime import datetime
 
-from ..db.mongodb import get_database
-from ..models.student import StudentCreate, StudentInDB, StudentResponse, EmergencyContact
-from ..services.face_engine import face_processor
+from db.mongodb import get_database
+from models.student import StudentCreate, StudentInDB, StudentResponse, EmergencyContact
+from services.simple_face_engine import simple_face_processor
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/students", tags=["students"])
@@ -67,7 +67,7 @@ async def register_student(
         
         # Extract face embeddings
         logger.info("Extracting face embeddings...")
-        embeddings = face_processor.extract_multiple_embeddings(image_data_list)
+        embeddings = simple_face_processor.extract_multiple_embeddings(image_data_list)
         
         if len(embeddings) == 0:
             raise HTTPException(
@@ -146,7 +146,9 @@ async def list_students(
         
         students = []
         async for student_doc in cursor:
-            student_doc["id"] = str(student_doc["_id"])
+            # Convert ObjectId to string
+            if "_id" in student_doc:
+                student_doc["_id"] = str(student_doc["_id"])
             students.append(StudentResponse(**student_doc))
         
         return students
@@ -172,7 +174,9 @@ async def get_student(student_id: str, db=Depends(get_database)):
         if not student_doc:
             raise HTTPException(status_code=404, detail="Student not found")
         
-        student_doc["id"] = str(student_doc["_id"])
+        # Convert ObjectId to string
+        if "_id" in student_doc:
+            student_doc["_id"] = str(student_doc["_id"])
         return StudentResponse(**student_doc)
         
     except Exception as e:
