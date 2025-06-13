@@ -73,13 +73,13 @@ async def search_face(
         
         processing_time = time.time() - start_time
         logger.info(f"Search completed. Checked {students_checked} students in {processing_time:.2f}s")        # Check if we found a valid match
-        if best_match and best_confidence >= simple_face_processor.confidence_threshold:
-            # Prepare student response (exclude embeddings and convert ObjectId)
+        if best_match and best_confidence >= simple_face_processor.confidence_threshold:            # Prepare student response (exclude embeddings and convert ObjectId)
             best_match.pop("face_embeddings", None)
             
-            # Convert ObjectId to string
+            # Convert ObjectId to string and rename _id to id
             if "_id" in best_match:
-                best_match["_id"] = str(best_match["_id"])
+                best_match["id"] = str(best_match["_id"])
+                del best_match["_id"]
             
             student_response = StudentResponse(**best_match)
             

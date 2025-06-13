@@ -51,7 +51,7 @@ class StudentInDB(StudentBase):
     )
 
 class StudentResponse(StudentBase):
-    id: str = Field(alias="_id")
+    id: str
     image_count: int
     created_at: datetime
     is_active: bool

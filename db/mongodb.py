@@ -20,7 +20,14 @@ mongodb = MongoDB()
 async def connect_to_mongo():
     """Create database connection"""
     try:
-        mongodb.client = AsyncIOMotorClient(MONGODB_URI)
+        # Use local MongoDB if no URI is provided
+        if not MONGODB_URI:
+            mongodb_uri = "mongodb://localhost:27017"
+            logging.info("No MONGODB_URI found, using local MongoDB")
+        else:
+            mongodb_uri = MONGODB_URI
+            
+        mongodb.client = AsyncIOMotorClient(mongodb_uri)
         mongodb.database = mongodb.client[DB_NAME]
         
         # Test the connection
@@ -29,7 +36,10 @@ async def connect_to_mongo():
         
     except Exception as e:
         logging.error(f"Failed to connect to MongoDB: {e}")
-        raise e
+        # For development, continue without MongoDB
+        logging.warning("Continuing without MongoDB connection for development")
+        mongodb.client = None
+        mongodb.database = None
 
 async def close_mongo_connection():
     """Close database connection"""

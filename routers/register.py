@@ -143,12 +143,12 @@ async def list_students(
             {"is_active": True},
             {"face_embeddings": 0}  # Exclude embeddings for performance
         ).skip(skip).limit(limit)
-        
         students = []
         async for student_doc in cursor:
-            # Convert ObjectId to string
+            # Convert ObjectId to string and rename _id to id
             if "_id" in student_doc:
-                student_doc["_id"] = str(student_doc["_id"])
+                student_doc["id"] = str(student_doc["_id"])
+                del student_doc["_id"]
             students.append(StudentResponse(**student_doc))
         
         return students
@@ -173,10 +173,10 @@ async def get_student(student_id: str, db=Depends(get_database)):
         
         if not student_doc:
             raise HTTPException(status_code=404, detail="Student not found")
-        
-        # Convert ObjectId to string
+          # Convert ObjectId to string and rename _id to id
         if "_id" in student_doc:
-            student_doc["_id"] = str(student_doc["_id"])
+            student_doc["id"] = str(student_doc["_id"])
+            del student_doc["_id"]
         return StudentResponse(**student_doc)
         
     except Exception as e:
