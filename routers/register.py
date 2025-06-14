@@ -3,10 +3,11 @@ from typing import List, Optional
 import json
 import logging
 from datetime import datetime
+from bson import ObjectId
 
 from db.mongodb import get_database
 from models.student import StudentCreate, StudentInDB, StudentResponse, EmergencyContact
-from services.simple_face_engine import simple_face_processor
+from services.simple_accurate_face_engine import simple_accurate_face_processor
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/students", tags=["students"])
@@ -64,10 +65,9 @@ async def register_student(
             if len(content) == 0:
                 raise HTTPException(status_code=400, detail="Empty image file detected")
             image_data_list.append(content)
-        
-        # Extract face embeddings
+          # Extract face embeddings
         logger.info("Extracting face embeddings...")
-        embeddings = simple_face_processor.extract_multiple_embeddings(image_data_list)
+        embeddings = simple_accurate_face_processor.extract_multiple_embeddings(image_data_list)
         
         if len(embeddings) == 0:
             raise HTTPException(

@@ -5,7 +5,7 @@ from typing import Optional
 
 from db.mongodb import get_database
 from models.student import FaceSearchResponse, FaceSearchResult, StudentResponse
-from services.simple_face_engine import simple_face_processor
+from services.simple_accurate_face_engine import simple_accurate_face_processor
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/search", tags=["search"])
@@ -36,7 +36,7 @@ async def search_face(
         
         logger.info("Processing search image...")
           # Extract face embedding from search image
-        search_embedding = simple_face_processor.extract_face_embedding(image_data)
+        search_embedding = simple_accurate_face_processor.extract_face_embedding(image_data)
         
         if not search_embedding:
             processing_time = time.time() - start_time
@@ -65,7 +65,7 @@ async def search_face(
                 continue
               # Compare with this student's embeddings
             for stored_embedding in stored_embeddings:
-                similarity = simple_face_processor.compare_faces(search_embedding, stored_embedding)
+                similarity = simple_accurate_face_processor.compare_faces(search_embedding, stored_embedding)
                 
                 if similarity > best_confidence:
                     best_confidence = similarity
@@ -73,7 +73,7 @@ async def search_face(
         
         processing_time = time.time() - start_time
         logger.info(f"Search completed. Checked {students_checked} students in {processing_time:.2f}s")        # Check if we found a valid match
-        if best_match and best_confidence >= simple_face_processor.confidence_threshold:            # Prepare student response (exclude embeddings and convert ObjectId)
+        if best_match and best_confidence >= simple_accurate_face_processor.confidence_threshold:            # Prepare student response (exclude embeddings and convert ObjectId)
             best_match.pop("face_embeddings", None)
             
             # Convert ObjectId to string and rename _id to id
@@ -144,7 +144,7 @@ async def get_search_stats(db=Depends(get_database)):
         return {
             "total_students": total_students,
             "total_face_embeddings": total_embeddings,
-            "average_images_per_student": total_embeddings / max(total_students, 1),            "confidence_threshold": simple_face_processor.confidence_threshold,
+            "average_images_per_student": total_embeddings / max(total_students, 1),            "confidence_threshold": simple_accurate_face_processor.confidence_threshold,
             "model_info": {
                 "face_model": "Simple OpenCV Face Detection",
                 "detector": "opencv"

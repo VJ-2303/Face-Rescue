@@ -1,0 +1,23 @@
+# Simple and Accurate Face Recognition Engine Requirements
+# No cmake or Visual Studio build tools required
+
+# Core computer vision and machine learning
+opencv-python>=4.8.0
+mediapipe>=0.10.0
+scikit-learn>=1.3.0
+numpy>=1.24.0
+pillow>=9.0.0
+
+# Web framework and database  
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pymongo>=4.5.0
+motor>=3.5.0
+python-multipart>=0.0.6
+
+# Utilities
+joblib>=1.3.0
+python-dotenv>=1.0.0
+
+# Optional: For better performance
+scipy>=1.11.0
